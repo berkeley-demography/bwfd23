@@ -1,0 +1,308 @@
+---
+title: "Berkeley Workshop in Formal Demography Pre-workshop Exercises
+(Mortality 1)"
+output: html_notebook
+author: Joshua R. Goldstein
+---
+In this notebook we provide a chance for you to learn and practice
+material on mortality. We cover
+
+* Hazards and continuous notation of the life table
+
+* Life expectancy
+
+* The effect of an increase in mortality at all ages on life expectancy
+
+
+The notebook has a series of self-graded "quiz" questions to help you
+check to see if you are understanding the material.
+
+```{r}
+library(quizify)
+```
+
+```{r}
+# leave this chunk as-is
+tot = 0
+answer.key = "eJytk8lu2zAQhu95ih/OwXJS0Vpc9NIWcC9FAcOHXoMeGHkiEeXikFSzPH1HlOPIRo6+UJztn+FHSjza3tyTL0WJb+D1Sigbou+bqJwNo3v2m/ZaNoTYEbZrPKnY4cX1HtKGJ/LISLTiE+brOZTFY+8ihcXsSjTOe2qiGNMOYmsOdMrGg/nLRmq91HAPkGi4aZQ24sE7gwLRoSqgAq83bzGup2ceyMphxoPMNquKxXKbFQt8zb+DEzI1Uc5F8flE8z2N9W9S/N2Vl+O+EPUX7nZkVCVG1Tmj6pKMktiPI6PqMoySjE6M9JSRUbYPmJIqlyz2Mak8oRoSPsZTJzz1OZ76knjqUzzJ3Dj3FzImba/aLqKTdoe9tDQiu3f/CHzAfXfOZaxXlqSHdi0Xvkq/CzDEDY+W9MRTNZ5kULZNEs6SjUpq/TJ0Hi9luBMvIwn8dGZPPr7OA0/hpaFIXjUwbscTyRB6Q4HHVUFM+a0Sv9U5v9Ul+a1O+SWzt40zhs8DzSRG7etrSB0FFaLj8wkhzsmlyk2BW2xKXjgjvYk7pPd1yx/+if4sUfH+brQGZzU4q0nBkJ4c05RjmEll+nmBfHh2s/8rDGUY"
+source.coded.txt(answer.key)
+```
+
+
+# Hazards and continuous notation
+
+Useful reading:
+
+* Wachter, Chapter 3, "Cohort Mortality", especially section 3.4.
+
+* Preston et al., Chapter 3, "The Life Table and Single Decrement
+  Processes", especially 3.8, Mortality as a Continuous Process. 
+
+
+Before discussing mortality, let's consider population growth. A
+population that grows at rate $R_1$ in year 1, $R_2$ in year 2,
+... $R_T$ in year T will have size
+
+$$
+N(T) = N(0)e^{R_1} e^{R_2} \ldots $e^{R_N}
+$$
+
+Using the rules of exponents
+$$
+N(T) = N(0) e^{\sum_1^T R_i}
+$$
+
+In continuous notation we can express the same thing as
+$$
+N(T) = N(0) e^{\int_0^T R(t)\,dt}
+$$
+
+We can use the same approach to model cohort mortality. We start with
+$\ell(0)$ individuals born, who are exposed at age $a$ to mortality at rate
+$h(a)$. Then, the fraction alive at age $x$ is
+$$
+\ell(x) = \ell(0) e^{-\int_0^x h(a)\,da}
+$$
+
+The equations for population growth and cohort survivorship look very
+similar. The differences are that we have replaced $R(t)$ with $h(a)$
+and we have inserted a minus-sign before the sum of cohort hazards. We
+do this because we define mortality rates as positive numbers that
+decrement the size of the cohort.
+
+Q1.1 A population shrinking at an exponential rate of 5 percent would
+after 20 years have which of the following sizes (as a fraction of
+it's starting size)
+
+A. exp(-.05 * 20) = exp(-1) = 0.37
+B. 0
+C. exp(-.05) = 0.95
+D. -1
+```{r}
+##  "Replace the NA with your answer (e.g., 'A' in quotes)"
+answer1.1 = NA
+quiz.check(answer1.1)
+```
+
+
+Q.2 If hazards were constant at 1/20, then at age 20 the fraction of a
+cohort surviving would be
+A. 0
+B. exp(-1) = exp(- 20 * 1/20) = 0.37
+C. exp(-1/20) = exp(- 1 * 1/20) = 0.95
+D. 1
+E. -1
+```{r}
+##  "Replace the NA with your answer (e.g., 'A' in quotes)"
+answer1.2 = NA
+quiz.check(answer1.2)
+```
+
+
+
+
+We just wrote survivorship in terms of hazards. To write hazards in
+terms of survivorship, we rearrange, take logs, and differentiate both
+sizes. Letting $\ell(0) = 1$, this gives
+$$
+h(x) = -{d \over dx} \log \ell(x),
+$$
+where $\log$ is the natural logarithm.
+
+This tells us that hazards are "minus the slope of log survivorship".
+
+Let's verify this with the Human Mortality Database period life table
+for 1900
+
+```{r}
+## needs proper path on our server
+df <- read.table("/data/BWFD21/HMD/SWE/bltper_1x1.txt",
+                 header = T, skip = 2)
+s = df$Year == "1900"
+x = 0:110
+radix = 100000
+lx = df$lx[s]/radix
+mx = df$mx[s]
+```
+
+Let's look at the single-year-of-age mortality rates
+```{r}
+par(mfrow = c(1,2))
+plot(x, mx)
+plot(x, log(mx))
+```
+
+Q1.3 Over what age range do log hazards seem to rise linearly?
+A. 0 to 20
+B. 60 to 90
+C. 30 to 60
+```{r}
+##  "Replace the NA with your answer (e.g., 'A' in quotes)"
+answer1.3 = NA
+quiz.check(answer1.3)
+```
+
+
+
+Now let's compute an estimate of hazards as minus the slope of log
+survival
+```{r}
+hx.hat = -diff(log(lx))
+plot(x, mx, type = "l")
+lines(0:109, hx.hat, lty = 2, col = "red")
+```
+We see that this basically works, except at the very old ages. This
+looks like it's due to rounding error. Inspecting the results:
+```{r}
+names(lx) <- x
+tail(lx, n = 20)
+```
+You can see that above age 95 or so there are very few significant
+digits for the number of survivors..
+
+Note: Preston has a nice summary table (page 69) of life table
+quantities in continuous notation.
+
+## Life expectancy
+
+In continuous notation, life expectancy at age $x$ 
+$$
+e(x) = {\int_x^\infty \ell(a)\,da \over \ell(x)}
+$$
+and at age 0 is just
+$$
+e(0) = \int_0^\infty \ell(a)\,da.
+$$
+
+(Note: if nothing is said about the value of $\ell(0)$, you can just
+let it equal 1.0. This makes $\ell(x)$ directly interpretable as a
+fraction of the initial birth cohort.)
+
+Another useful quantity is the sum of hazards up to age $x$, or
+"cumulative hazards", which is denoted with a capital "H", 
+$$
+H(x) = \int_0^x h(a)\, da.
+$$
+
+Let's recalculate life expectancy for 1900 in Sweden using our
+estimated hazards.
+
+```{r}
+hx.hat = -diff(log(lx))
+Hx.hat = cumsum(hx.hat) ## the cumulated sum; cumsum(1:3) gives [1] 1 3 6
+lx.hat = c(1, exp(-Hx.hat)) ## we use 1 for l(0)
+lx.hat[is.nan(lx.hat)] <- 0
+## for accuracy we sum person-years lived from x to x+ 1, known as Lx, rather than lx.
+lxp1.hat = c(lx.hat[-1],0) ## l(x+1)
+Lx.hat = (lx.hat + lxp1.hat)/2 ## Lx = [l(x) + l(x+1)] / 2
+e0.hat = sum(Lx.hat)
+## alt.e0.hat = sum(lx.hat) ## ignore for now
+```
+
+Let's compare to the published value
+```{r}
+hmd.e0 = df$ex[df$Year == 1900 &  df$Age == "0"]
+print(c("hmd" = hmd.e0, "hat" = e0.hat))
+```
+The two estimates are super close!
+
+Before finishing this section let's write a function to calculate e0
+from hazards.
+Note: Lx can be understood as Person Years Lived, or the area under the lx curve
+```{r}
+
+get.e0 <- function(hx)
+{
+Hx = cumsum(hx) ## the cumulated sum; cumsum(1:3) gives [1] 1 3 6
+lx = c(1, exp(-Hx)) ## we use 1 for l(0)
+## for accuracy we sum person-years lived from x to x+ 1, known as Lx, rather than lx.
+lxp1 = c(lx[-1],0) ## l(x+1)
+Lx = (lx + lxp1)/2 ## Lx = [l(x) + l(x+1)] / 2
+e0 = sum(Lx, na.rm = T)
+return(e0)
+}
+## test
+get.e0(hx.hat)
+```
+
+Answer the following question by inserting `alt.e0 = sum(lx)' in the
+R-code chunk above.
+
+Q1.4 If we sum $l(x)$ rather than $L(x)$, we will
+A. Get nearly exactly the same thing
+B. Get a life expectancy value 0.5 years higher
+```{r}
+##  "Replace the NA with your answer (e.g., 'A' in quotes)"
+answer1.4 = NA
+quiz.check(answer1.4)
+```
+
+# Effect of sudden increase in hazards at all ages on life expectancy
+
+If we increase the mortality rate by 10 percent at all ages, then what will happen
+to life expectancy?
+
+We can use our function to see.
+
+```{r}
+hx.shock = hx.hat * 1.1
+e0.shock = get.e0(hx.shock)
+e0 = get.e0(hx.hat)
+absolute.change = e0.shock - e0
+proportional.change = (e0.shock - e0)/e0
+print("absolute.change")
+print(absolute.change)
+print("proportional.change")
+print(proportional.change)
+```
+
+So, the result of a 10 percent increase in mortality rates at all ages
+is that life expectancy falls from about 52.2 to about 50.1, an
+absolute decline of a bit more than 2 years and a proportional change
+of about 4 percent.
+
+If we think about this as an elasticity, telling us the relative
+change in y of a relative change in x, then the elasticity of life
+expectancy with respect to a proportional change in mortality would be
+about -0.4.
+
+Exercises (Hint: you should be able to do all of these by making some
+           minor modifications of the code that is in the notebook.
+		   Another Hint: change the command "s = df$Year == 1900".)
+
+1. Get the hazard schedule of the period life table a century later,
+   in 2000 (Hint: think of hazards as the instantaneous mortality         rate). Plot hx and log(hx). For what age range does mortality          appear linear in the log scale?
+   (Answer: Josh guesses without looking at the results it's pretty
+   linear from age 40 to  90? Note: Josh may be wrong.)
+
+2. Calculate life expectancy at birth using the function get.e0() and
+   your hazard rates for 2000. Do you get close to the published
+   number? (You should :)
+   
+3. Calculate life expectancy at birth for the life table with hazards
+   10 percent higher at every age than that of the 2000 life table. 
+   
+   a) How many years does life expectancy decline as a result of the
+   10 percent shock? Is this bigger or smaller than the effect in 1900
+   of the same proportional shock?
+   
+   b) What is the elasticity of life expectancy with respect to such a
+   shock? That is, what is the proportional decline in life expectancy
+   relative to the proportional increase in mortality? Did this
+   elasticity (which is known as "life table entropy") increase or
+   decrease from 1900 to 2000?
+   
+   c) On Twitter, I got into a discussion with Ilya about whether if
+   expectancy was really "the best way" to standardize the effects of
+   Covid-19. [link is here](https://twitter.com/jrgoldstein1/status/1384265783623110656). 
+   What do you think? Who is right? Who is wrong?   What does this
+   have to do with changes in entropy?
+   
+Congratulations! You have finished the pre-workshop notebook on
+mortality.
+   
+
+
+
+
+
