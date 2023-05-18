@@ -1,0 +1,259 @@
+---
+title: "Pre-workshop Exercises for Fertility: Computing Period and Cohort Measures from Matrices of Fertility Rates"
+output: html_notebook
+author: Joshua R. Goldstein
+---
+
+The goal of this pre-workshop exercise is to calculate period and
+cohort summary statistics from matrices of fertility rates. We will
+
+1. Learn to index matrices by row and column and create a "cohort" index
+2. Use tapply() to summarize by period, age, and cohort
+3. Verify an amazing relationship between periods and cohorts.
+
+For a refresher on fertility measures and the relationship between cohort and period rates, please see **Preston *et al.* (2001), Sections 5.1 and 5.3** and/or **Wachter (2014), Sections 4.1 - 4.3 and Sections 6.1 - 6.3**.   
+
+We will be using the baseR functions 'tapply()' and 'colSums()'. If you are unfamiliar with these or any other functions, remember that you can always learn more about a function and its associated operators by typing '?functionname' into your console or entering 'functionname' into the R Help window. For example, to read more about colSums(), simply type ?colSums into your console or search for colSums into the Help window. 
+
+## Our "toy" example with 6 periods and 3 ages
+
+We begin with a simple example for an animal that lives only three years and reproduces in each year. We observe the following fertility rates, by row (age) and column (period):
+
+```{r}
+A <- matrix(
+    data = c(1.0,  0.9,  0.8,  0.7,  0.6,  0.5,
+             1.0,  1.0,  1.0,  1.0,  1.0,  1.0,
+             0.5,  0.6,  0.7,  0.8,  0.9,  1.0),
+    nrow = 3,
+    ncol = 6,
+    byrow = TRUE)
+
+print(A)
+##      [,1] [,2] [,3] [,4] [,5] [,6]
+## [1,]  1.0  0.9  0.8  0.7  0.6  0.5
+## [2,]  1.0  1.0  1.0  1.0  1.0  1.0
+## [3,]  0.5  0.6  0.7  0.8  0.9  1.0
+
+
+## here the rows are the "age groups"
+## and the columns are the "periods"
+
+## we could label them as follows
+rownames(A) = 1:3
+colnames(A) = 1:6
+
+print(A)
+##     1   2   3   4   5   6
+## 1 1.0 0.9 0.8 0.7 0.6 0.5
+## 2 1.0 1.0 1.0 1.0 1.0 1.0
+## 3 0.5 0.6 0.7 0.8 0.9 1.0
+```
+
+For instance, the first row corresponds to $_{1}F_{0}$ for each cohort. Values in rows 2 and 3 are $_{1}F_{1}$ and $_{1}F_{2}$, respectively for each cohort. So, while ages and periods are rows or columns, cohorts are the diagonals. 
+
+At age 1 (row 1) and period 1 (column 1) an animal would have a fertility rate of 1.0. If we follow the same animal over time, the next year, it would be of age 2 in period 2, so its fertility rate would be 1.0, but in its final year, the animal's fertility rate would be 0.7 (row 3, column 3).
+
+## Computing fertility summaries by age, period, and cohort
+
+The period totals are the sums of each column. An easy-to-read way to do this is to take advantage of the build-in function 'colSums()'. 
+
+```{r}
+colSums(A)
+```
+
+A more general approach that we use is to create an "index" that we can apply the function sum() over.
+
+```{r}
+## indexing period using the col() function
+Per = col(A)
+##     [,1] [,2] [,3] [,4] [,5] [,6]
+## [1,]    1    2    3    4    5    6
+## [2,]    1    2    3    4    5    6
+## [3,]    1    2    3    4    5    6
+
+tapply(X = A, INDEX = Per, FUN = sum)
+## this should give the same total as colSums()
+
+## we'll save this
+period_TFR = tapply(X = A, INDEX = Per, FUN = sum)
+```
+
+Now we can use this same logic to get a "cohort" index, and sum over it.
+
+```{r}
+Age = row(A) ## since each row is a different age
+Per = col(A) ## as before
+Coh = Per - Age ## Since, cohort  + age = period
+
+print(Coh)
+##     [,1] [,2] [,3] [,4] [,5] [,6]
+##[1,]    0    1    2    3    4    5
+##[2,]   -1    0    1    2    3    4
+##[3,]   -2   -1    0    1    2    3
+```
+
+
+```{r}
+## the cohort totals can be found by replacing the "Per" index with "Coh"
+cohort_TFR = tapply(X = A, INDEX = Coh, FUN = sum)
+
+print("cohort TFR")
+print(cohort_TFR)
+##  -2  -1   0   1   2   3   4   5 
+## 0.5 1.6 2.7 2.7 2.7 2.7 1.6 0.5 
+print("period_TFR")
+print(period_TFR)
+
+```
+Note 1: Cohort "0" is born in period "1" but we're not going to worry about that for now.
+Note 2: This could be fixed by defining: Coh = Per - Age + 1
+
+## Exercises A
+
+1. Why doesn't every cohort have the same total?  (Hint: look at how many
+ages are observed for each cohort in the matrix, "Coh".) Which cohorts are complete?
+
+*Answer: Since animals only live up to 3 periods, the only completed cohorts that we observe are "0", "1", "2" and "3". For the rest of the cohorts, we are missing fertility rates of past and future periods, which is why the cohort TFR differs across cohorts *
+
+2. If a person was born in 1930 and they are observed at age 47 at
+the end of the year, what is the period of observation? 
+
+*Answer: period = cohort + age. Period of observation is 1930 + 47 = 1977.*
+
+3. If a person turns 47 in 2023, what cohort year were they born in?
+
+*Answer: cohort = period - age. The birth cohort is 2023 - 47 = 1976.*
+
+4. What is a formula for "age" $a$ , given "period" $t$ and "cohort" $c$? 
+
+*Answer: a = t-c.*
+
+5. At last, a demographic question: Which is bigger, the period totals or the (completed) cohort totals?
+
+*Answer: completed cohort TFR is larger than period TFR. *
+
+6. How is this possible -- that they are not equal? 
+
+*Answer: We don’t have a fully developed sense of how and why this is happening. Just a specific example. But it appears that postponement of fertility from younger to older ages has a larger effect on period fertility than on cohorts. We will learn more about this in the workshop! *
+
+# Mean ages
+
+In order to study changes in timing, we calculate the mean age of the fertility distribution by period and cohort.
+
+Recall that, using discrete time notation, the mean age of the fertility distribution, $\bar{m}$ or $A_{M}$, is given by:
+
+$$ \bar{m} = \frac{\sum \ _nF_x * (x + \frac{n}{2})}{\sum\ _{n}F_x}$$
+We first need a function that will calculate the mean of a tabulated frequency distribution
+
+```{r}
+table_mean <- function(Fx, x.mid)
+{
+    bar_m = sum(x.mid * Fx)/sum(Fx)
+    return(bar_m)
+}
+
+## An illustration of a balanced distribution that should
+## have the middle value of x.mid as the mean
+table_mean(Fx = c(10, 20, 10), x.mid = c(15.5, 16.5, 17.5))
+
+## the answer should be 16.5
+```
+
+
+Let's calculate the period means of our "toy" example.
+
+Remember that the row index of matrix A corresponds to the end age. Essentially, the first age group goes from ages 0 to 1, which is why the mid age for is 0.5 for the first age bin.
+
+```{r}
+my_x.mid = c(0.5, 1.5, 2.5)
+
+period_means.vec = tapply(X = A, INDEX = Per, FUN = table_mean, x.mid = my_x.mid)
+print(period_means.vec)
+##    1    2    3    4    5    6 
+## 1.30 1.38 1.46 1.54 1.62 1.70 
+```
+
+Notice that the mean age of birth is going up each period. In fact, in this example, it's going up by the same amount (0.8 years) in period
+
+```{r}
+diff(period_means.vec)
+##    2    3    4    5    6 
+## 0.08 0.08 0.08 0.08 0.08 
+```
+
+## Exercises B
+
+At the workshop we will use Ryder's approach to derive the formula
+$$
+TFR_{period}(t) (1 + {d \over dt} \bar{m}_{period}(t))  = TFR_{cohort}(t)
+$$
+
+where ${d \over dt} \bar{m}_{period}(t)$ is the pace of change of the period mean.
+
+1. Confirm that this works for our toy example.
+
+Hint: You don't need to do any new calculations in R. Instead, look at the calculated values above.
+
+```{r}
+## Focusing for just one t : t=2
+## TFR_{period}(t) = period_TFR[2]
+## {d \over dt} \bar{m}_{period}(t) = diff(period_means.vec)[1]
+print("cohort TFR (t=2):")
+period_TFR[2]*(1+diff(period_means.vec)[1])
+
+
+# For all periods:
+print("cohort TFR(t):")
+period_TFR[2:6]*(1+diff(period_means.vec))
+```
+*Answer: we find the same cohort TFR as in line 97 for cohorts 2 and 3 (which are the only completed cohorts which overlap for a given with the period TFR). *
+
+2. Try calculating a cohort_means.vec using tapply() and our table_mean function(). What
+is going wrong?
+
+```{r}
+# Using same values as period_means.vec 
+my_x.mid = c(0.5, 1.5, 2.5)
+
+cohort_means.vec = tapply(X = A, INDEX = Coh, FUN = table_mean, x.mid = my_x.mid)
+print(cohort_means.vec)
+
+```
+*Answer: the problem with the function is that it assumes that all cohorts have the same mid age values, but we know that some of the cohorts are not complete.*
+
+3. Advanced (and totally optional): the following code produces the correct value for the
+cohort_means.vec. Annotate the code with comments to explain what each line is doing.
+
+```{r}
+Coh_length = tapply(X = A, INDEX = Coh, FUN = length)                                     # Counts number of observations per cohort.
+print(Coh_length)
+trunc_cohorts <- Coh_length[Coh_length < max(Coh_length)]                                 # Flags cohorts that are incomplete (not 3 observations).
+print(trunc_cohorts)
+FullCoh = Coh                                                                             # Makes copy of Coh matrix
+FullCoh[Coh %in% names(trunc_cohorts)] <- NA                                              # Replaces incomplete cohorts with NA
+print(FullCoh)
+cohort_means.vec = tapply(X = A, INDEX = FullCoh, FUN = table_mean, x.mid = my_x.mid)     # Applies mean table to complete cohorts only
+print(cohort_means.vec)
+
+## notice that the change in the cohort mean is slightly different than that of the period means
+diff(cohort_means.vec)
+
+## extra-extra credit: figure out a formula relating period and cohort totals using the pace of change of the cohort mean.
+
+```
+
+#Extra-extra credit
+*Answer: *
+
+$$
+TFR_{period}(t)  = TFR_{cohort}(t) * (1- \frac{d}{dt}\bar{m}_{cohort}(t))
+$$
+
+```{r}
+#For Period 4:
+print("Period TFR (t=4):")
+period_TFR[4]
+cohort_TFR[4]*(1 - diff(cohort_means.vec)[1])
+```
+
+Congratulations! You've completed this exercise for the Berkeley Formal Demography Workshop!
