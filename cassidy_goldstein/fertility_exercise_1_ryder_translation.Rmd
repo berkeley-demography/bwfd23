@@ -1,0 +1,155 @@
+---
+  title: "Fertility Exercise 1: Translating from period to cohort"
+author: "Joshua R. Goldstein"
+date: "Berkeley Workshop, 2023"
+output: html_notebook
+---
+
+  In these exercises, we will apply the version of Ryder's translation that converts period total fertility to cohort total fertility.
+
+  
+$$
+CTFR\left(t - \mu_p(t)\right) = PTFR(t) \times \left[1 + \mu'_p(t) \right]
+$$
+  * Notice that all parameters involving the mean are in terms of easily measurable period quantities.
+  * Remember that this equation is only exactly true when age-specific fertility is changing perfectly linearly; otherwise, it is only an approximation.
+In the exercises we will look at:
+  1. Our toy example from the pre-workshop exercises
+  2. Real data from the United States baby-boom and bust
+
+## Pre-workshop exercise (cont.)
+Here is what we already did:
+```{r}
+## input matrix of fertility rates
+## by age (rows) and period (columns)
+A <- Fxt <- matrix(
+  data = c(1.0,  0.9,  0.8,  0.7,  0.6,  0.5,
+           1.0,  1.0,  1.0,  1.0,  1.0,  1.0,
+           0.5,  0.6,  0.7,  0.8,  0.9,  1.0),
+  nrow = 3,
+  ncol = 6,
+  byrow = TRUE)
+## define indices for Age, Period, and Cohort
+Age = row(A)
+Per = col(A)
+Coh = Per - Age ## Since, cohort  + age = period
+cohort_tfr = tapply(X = A, INDEX = Coh, FUN = sum)
+period_tfr = tapply(X = A, INDEX = Per, FUN = sum)
+print(cohort_tfr)
+print(period_tfr)
+## save period and cohort values
+period = as.numeric(names(period_tfr))
+cohort = as.numeric(names(cohort_tfr))
+```
+
+Now we'll use Ryder's translation to estimate the cohort TFR from the period quantities.
+
+```{r}
+table_mean <- function(Fx, x.mid)
+{
+  mu = sum(x.mid * Fx)/sum(Fx)
+  return(mu)
+}
+## get period mean ages
+my_x.mid = c(0.5, 1.5, 2.5)
+mu_p = tapply(X = A,
+              INDEX = Per,
+              FUN = table_mean,
+              x.mid = my_x.mid)
+print(mu_p)
+mu_p_prime = c(NA, diff(mu_p)) ## diffs for last interval
+cohort_tfr_hat = period_tfr * (1 + mu_p_prime) ## key formula
+cohort_hat = period - mu_p ## corresponding birth cohort for each cohort_tfr
+## plot the results
+par(mfrow = c(1,1))
+plot(period, period_tfr,
+     col = "blue", xlim = range(c(cohort, period)),
+     ylim = c(0,3), pch = 19,
+     xlab = "period for ptfr or birth cohort for ctfr")
+title("Period and Cohort Total Fertility for Pre-workshop Example")
+lines(cohort, cohort_tfr,
+      type = "p", col = "red", pch = 19)
+points(cohort_hat, cohort_tfr_hat, col = "red")
+arrows(x0 = period, x1 = cohort_hat, y0 = period_tfr, y1 = cohort_tfr_hat, col = "grey", length = 0.1)
+legend("topleft", legend = c("period", "cohort", "cohort est."),
+       col = c("blue", "red", "red"),
+       pch = c(19, 19, 1), bty = "n")
+```
+
+Questions:
+  1. Which cohort TFRs should we take seriously? Which should we ignore? Why?
+  #A: In this example: 
+  2. How well does Ryder estimate work in matching cohort TFRS? (a) ok, (b) perfectly, (c) not very well.
+
+## Part 2: Real US data
+Here we'll do the cohort born in about 1970, having kids (on average) in about year 2000.
+```{r}
+## We'll read in age-specific fertility rates from Human Fertility Database and put them in a matrix
+library(data.table)
+dt <- fread("asfrRR.txt")
+dt <- dt[Code == "USA"] ## keep just USA
+dt[, x := as.numeric(Age)] ## assign age variable as numeric "x"
+dt[Age == "12-", x := 12] ## fix youngest and oldest ages
+dt[Age == "55+", x := 55]
+## put into a matrix using xtabs
+A <- dt[, xtabs(ASFR ~ x + Year)]
+x = as.numeric(rownames(A))
+yr = as.numeric(colnames(A))
+Age = x[row(A)]
+Per = yr[col(A)]
+Coh = Per - Age ## Since, cohort  + age = period
+```
+
+Now get TFRs (period and cohort)
+
+```{r}
+period_tfr = tapply(X = A, INDEX = Per, FUN = sum)
+cohort_tfr = tapply(X = A, INDEX = Coh, FUN = sum)
+## drop incomplete cohorts
+coh_len = table(Coh)
+full_coh = names(coh_len)[coh_len == 44]
+cohort_tfr = cohort_tfr[names(cohort_tfr) %in% full_coh]
+## save period and cohort values
+period = as.numeric(names(period_tfr))
+cohort = as.numeric(names(cohort_tfr))
+```
+
+To make comparison's easier, we plot cohort TFR at cohort + 28 years, so that each cohort's mean fertility is happening in the period that is being translated. 
+
+```{r}
+## get period mean ages
+my_x.mid = x + 0.5
+mu_p = tapply(X = A,
+              INDEX = Per,
+              FUN = table_mean,
+              x.mid = my_x.mid)
+print(mu_p)
+mu_p_prime = c(NA, diff(mu_p)) ## diffs for last interval
+cohort_tfr_hat = period_tfr * (1 + mu_p_prime)
+cohort_hat = period - mu_p
+## plot the results
+par(mfrow = c(1,2))
+plot(period, period_tfr,
+     col = "blue", xlim = range(c(cohort+28, period, cohort_hat+28)),
+     ylim = c(0,4), pch = 19,
+     xlab = "period (or cohort + 28)")
+title("Period and Cohort Total Fertility, USA")
+lines(cohort + 28, cohort_tfr,
+      type = "p", col = "red", pch = 19)
+points(cohort_hat + 28, cohort_tfr_hat, col = "red")
+legend("topright", legend = c("period", "cohort", "cohort est."),
+       col = c("blue", "red", "red"),
+       pch = c(19, 19, 1), bty = "n")
+##
+plot(period, mu_p,
+     xlim = range(c(cohort+28, period, cohort_hat+28)))
+title("Period mean ages")
+grid()
+abline(h = 0)
+```
+
+Questions:
+  1. How does Ryder estimate work? (a) ok, (b) perfectly, (c) not very well.
+  2. Can you see any broad pattern in cohort fertility being higher or lower than period fertility? (Note: the answer may be clearer from mean age plot)
+  3. Should we believe the translation based on only a period (or 3's) observations? If not, what would be a strategy for getting more robust estimates of periods?
+  4. What would you guess that the cohort born in 1995 will have as their cohort fertility: closer to 1.7 or closer to 2.0?

@@ -1,0 +1,157 @@
+---
+title: "Fertility Exercise 3: Simulating a moving target"
+output: html_notebook
+---
+
+The goal of this exercise is see how period fertility reacts to a small change in desired completed family size. 
+
+The exercises have 3 parts:
+
+1. Simulate  single cohort with a single target. This reveals an exponential solution to duration-specific fertility.
+
+2. Simulate multiple cohorts on the Lexis surface -- still with a constant target. (This mostly just illustrates how to use loops to do this.)
+
+3. Simulate multiple cohorts with a period change in targets. 
+
+## 1. Simulate fixed target for a cohort
+
+The code below will recursively simulate the differential equation
+$$
+        f_x = \alpha * (D - F_x)
+$$        
+
+```{r}
+## We'll assume 10 age groups
+n_ages = 10
+Fx = rep(0, n_ages) ## initialize cum fert at 0
+fx = rep(NA, n_ages) ## and duration-specific fert as NA
+alpha = 1/3 ## fulfillment rate
+D = 1 ## target (1 child)
+
+for (i in 1:n_ages) ## loop thru all ages
+{
+    if (i == 1) ## special case where cumulative fertility is 0
+        {
+            fx[i] = alpha * (D - 0)
+            Fx[i] <- 0    + fx[i] ## assign first cumu fertility thru first age group
+        }
+    if (i > 1) ## general case
+    {
+        fx[i] = alpha * (D - Fx[i-1]) ## estimate fertility at duration i
+        Fx[i] <- Fx[i-1] + fx[i] ## update cumulative fertility
+    }
+}
+```
+
+To visualize
+
+```{r}
+
+par(mfrow = c(2,1))
+plot(fx, type = 'o',
+     main = "Duration-specific fertility",
+     xlab = "Duration",
+     axes = F)
+axis(1); axis(2, at = round(fx,2))
+plot(Fx, type = 'o',
+     main = "Cumulative fertility",
+     xlab = "Duration")
+```
+
+Discussion questions:
+1a. Does cumulative cohort fertility eventally reach the target?
+1b. Does duration-specific fertility seem realistic?
+
+
+## 2. Put into cohorts on a lexis surface and calculate period TFR
+## still with a constant desired fertility target of 1.0
+
+We want to simulate
+$$
+        f_{x,t} = \alpha * (D_t - F^{coh}_{x,t})
+$$   
+```{r}
+n_ages = 10
+n_per = 20
+Dt <- rep(1, n_per) ## a vector of life-time desires, 1 for all periods
+
+## now do a double loop over lexis surface
+fxt <- matrix(NA, n_ages, n_per)
+Fxt <- matrix(NA, n_ages, n_per)
+## initialize cumulative fertility 
+Fxt[,1] <- Fx # steady state for starting period
+fxt[,1] <- fx # steady state for starting period
+for (i in 1:n_ages)
+{
+    for (j in 2:n_per) # start in 2nd period (already assigned 1st)
+    {
+        if (i == 1) ## youngest age has 0 cumulative fertility
+        {
+            fxt[i,j] = alpha * (Dt[j] - 0)
+            Fxt[i,j] <- 0    + fxt[i,j]
+        }
+        if (i > 1) ## general case, we just update as before, but for each cohort
+        {
+            fxt[i,j] = alpha * (Dt[j] - Fxt[i-1,j-1])
+            Fxt[i,j] <- Fxt[i-1,j-1] + fxt[i,j]
+        }
+    }
+}
+```
+
+Visualize results
+```{r}
+tfr = apply(fxt, 2, sum)
+plot(tfr)
+```
+
+Discussion questions: 
+2a. Why did we have to initialize 1st columns of fxt and Fxt
+2b. What happens to period TFR? Nothing, right?
+
+## 3. Now simulate a 1-time, permanent increase in target from 1.0 to 1.2
+
+Same code as before with 1 line changed
+```{r}
+n_ages = 10
+n_per = 20
+## Dt <- rep(1, n_per)
+Dt <- c(rep(1, n_per/2),  rep(1.2, n_per/2)) ## New line!!!
+print(Dt)        
+
+## now do a double loop over lexis surface
+fxt <- matrix(NA, n_ages, n_per)
+Fxt <- matrix(NA, n_ages, n_per)
+## initialize cumulative fertility 
+Fxt[,1] <- Fx # steady state for starting period
+fxt[,1] <- fx # steady state for starting period
+for (i in 1:n_ages)
+{
+    for (j in 2:n_per) # start in 2nd period (already assigned 1st)
+    {
+        if (i == 1) ## youngest age has 0 cumulative fertility
+        {
+            fxt[i,j] = alpha * (Dt[j] - 0)
+            Fxt[i,j] <- 0    + fxt[i,j]
+        }
+        if (i > 1)
+        {
+            fxt[i,j] = alpha * (Dt[j] - Fxt[i-1,j-1])
+            Fxt[i,j] <- Fxt[i-1,j-1] + fxt[i,j]
+        }
+    }
+}
+
+tfr = apply(fxt, 2, sum)
+plot(tfr)
+```
+
+3a. When is period tfr highest? Why do you think this is?
+3b. What does period tfr converge to at the end?
+3c. Does this help explain covid slide about "boom", "bust" and "thud"?                                                                          
+
+## 4. Optional extra credit. Implement 1-time decrease in fulfillment $\alpha(t)$.
+
+
+
+

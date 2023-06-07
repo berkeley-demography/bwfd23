@@ -1,0 +1,118 @@
+---
+title: "Fertility Exercise 2: Are recent fertility decline just tempo effects: applying Bongaarts-Feeney in South Korean and Finland"
+author: "Joshua R. Goldstein"
+date: "Berkeley workshop, 2023"
+output: html_notebook
+---
+
+In these exercises, we will look at recent fertility change in several countries and assess the extent to which the changing pace of postponement may be influencing period total fertility
+
+The exercises is mostly just running the existing code and interpreting the output.
+
+We will use data from www.humanfertility.org, which we've already put on our github page for easy downloading.
+
+## Preliminaries
+
+We start by downloading some utility functions and loading our fertility data. 
+
+```{r}
+source("fertility_exercise_functions.R")
+
+asfr_file = "asfrRR.txt"
+```
+
+## Creating a matrix of age-specific fertility rates
+
+```{r}
+A <- get_hfd_fertility_matrix(file = asfr_file, code = "KOR")
+A <- A[,paste(2000:2020)] ## just keep years 2000 to 2020
+
+
+per = as.numeric(colnames(A))
+age = as.numeric(rownames(A))
+
+## get period TFR
+per_tfr = apply(A, 2, sum)
+```
+
+## Visualize TFR, age-specific rates, and adjusted-TFR
+
+The code below will produce a set of panels in a single plot.
+
+```{r}
+par(mfrow = c(3,2))
+
+## plot TFR
+plot(per, per_tfr, type = 'o')  ## you might want to adjust ylim argument in plot()
+title("Total Fertility Rate")
+grid()
+
+## plot ASFRs
+A5 <- A[age %in% seq(15, 45, 5),]
+matplot(per, t(A5), type = 'l',
+        ylab = "asfr",
+        xlab = "period")
+title("Age-specific fertility trends")
+text(rep(per[1], nrow(A5)),
+     A5[,1], rownames(A5), col = 1:6)
+
+
+## now calculate bongaarts-feeney (without parity)
+
+mu_per = apply(A, 2, get.mean)
+mu_per_prime = center.diff(mu_per, end.fill = T)
+
+## plot Mean Age
+plot(per, mu_per)
+title("Mean age of childbearing")
+grid()
+
+## plot rate of change in Mean Age
+plot(per, mu_per_prime, ylim = c(0, 0.3));
+title("Rate of postponement")
+grid()
+
+## calculate bongaarts-feeney adjusted TFR
+adjusted_per_tfr <- per_tfr / (1 - mu_per_prime)
+
+## plot adjusted TFR
+plot(per, per_tfr, ylim = c(0.7, 2.2), pch = 19)
+grid()
+points(per, adjusted_per_tfr, type = "p", col = "red")
+
+## Finally, et's get the cohort turning 20 in 2000 and see how many kids they had by 40
+
+per = as.numeric(colnames(A))
+age = as.numeric(rownames(A))
+Per = per[col(A)]
+Age = age[row(A)]
+Coh = Per-Age
+
+my_cohort_asfr = A[Coh == 1980]
+my_ctfr = sum(my_cohort_asfr) ## [1] 1.43224 
+
+## add horizontal line to TFR plot showing this cohort
+abline(h = my_ctfr, col = "orange", lty = 2)
+title("Period TFR, observed and adjusted")
+## add legend
+legend("bottomleft",
+       legend = c("TFR", "TFR-adj", "1980 cohort"),
+       pch = c(19, 1, -1),
+       col = c("black", "red", "orange"),
+       lty = c(-1,-1, 1))
+```
+
+Questions;
+1. How low does TFR get? What long-term growth rate would this imply if it stayed constant for many decades?
+2. Are age-specific changes linear enough to use Ryder translation equation accurately?
+3. About how much bigger in percentage terms is the tempo-adjusted period TFR than the unadjusted one? (Hint: look at the mu_per_prime graph).
+4. Does faster postponement seem to explain the recent period TFR declines?
+
+Extra-credit: repeat exercise for Finland, country code "FIN".
+
+Extra-extra-credit: look up published Bongaarts-Feeneey tempo-adjusted TFRs on www.humanfertility.org and see if these -- which incorporate separate estimates by parity -- show same pattern as what we found here.
+
+
+
+
+
